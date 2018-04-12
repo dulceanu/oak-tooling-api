@@ -89,6 +89,12 @@
       <version>1.10-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>one.util</groupId>
+      <artifactId>streamex</artifactId>
+      <version>0.6.6</version>
+      <scope>test</scope>
+   </dependency>
   </dependencies>
 
 </project>

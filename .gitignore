@@ -3,3 +3,7 @@
 out
 gen
 target
+.project
+.settings
+.classpath
+.gitignore
