@@ -26,16 +26,22 @@ import java.security.InvalidKeyException;
 
 import javax.annotation.Nonnull;
 
+import org.apache.jackrabbit.oak.plugins.blob.datastore.DataStoreBlobStore;
+import org.apache.jackrabbit.oak.plugins.blob.datastore.OakFileDataStore;
+import org.apache.jackrabbit.oak.segment.azure.AzurePersistence;
+import org.apache.jackrabbit.oak.segment.file.FileStoreBuilder;
+import org.apache.jackrabbit.oak.spi.blob.BlobStore;
+import org.junit.AssumptionViolatedException;
+
 import com.microsoft.azure.storage.CloudStorageAccount;
 import com.microsoft.azure.storage.StorageException;
 import com.microsoft.azure.storage.blob.CloudBlobContainer;
-import org.apache.jackrabbit.oak.segment.azure.AzurePersistence;
-import org.apache.jackrabbit.oak.segment.file.FileStoreBuilder;
-import org.junit.AssumptionViolatedException;
 
 public final class FileStoreUtil {
 
     private final static String SEGMENT_DIR = System.getProperty("segmentstore", null);
+    
+    private final static String DATASTORE_DIR = System.getProperty("datastore", null);
 
     private final static String AZURE_CONNECTION_STRING = System.getProperty("azure_conn_string", null);
 
@@ -49,7 +55,13 @@ public final class FileStoreUtil {
     @Nonnull
     public static FileStoreBuilder getFileStoreBuilder() throws URISyntaxException, InvalidKeyException, StorageException, IOException {
         if (SEGMENT_DIR != null) {
-            return fileStoreBuilder(new File(SEGMENT_DIR));
+            FileStoreBuilder fsb = fileStoreBuilder(new File(SEGMENT_DIR));
+            
+            if (DATASTORE_DIR != null) {
+                fsb.withBlobStore(newBlobStore(new File(DATASTORE_DIR)));
+            }
+            
+            return fsb;
         } else if (AZURE_CONNECTION_STRING != null && AZURE_CONTAINER_NAME != null && AZURE_PATH != null) {
             CloudStorageAccount cloud = CloudStorageAccount.parse(AZURE_CONNECTION_STRING);
             CloudBlobContainer container = cloud.createCloudBlobClient().getContainerReference(AZURE_CONTAINER_NAME);
@@ -61,5 +73,12 @@ public final class FileStoreUtil {
                     "Use -Dsegmentstore=/path/to/segmentstore or " +
                     "configure Azure with azure_conn_string, azure_container and azure_path.");
         }
+    }
+    
+    private static BlobStore newBlobStore(File directory) {
+        OakFileDataStore delegate = new OakFileDataStore();
+        delegate.setPath(directory.getAbsolutePath());
+        delegate.init(null);
+        return new DataStoreBlobStore(delegate);
     }
 }
