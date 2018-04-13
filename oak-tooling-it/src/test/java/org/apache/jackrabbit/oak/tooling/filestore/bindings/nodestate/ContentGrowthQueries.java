@@ -43,13 +43,14 @@ import com.microsoft.azure.storage.StorageException;
 import one.util.streamex.StreamEx;
 
 public class ContentGrowthQueries {
-
+    private static final int MB = 1024 * 1024;
+    
     private static ReadOnlyFileStore fileStore;
-
     private static SegmentStore segmentStore;
 
     @BeforeClass
-    public static void setup() throws IOException, InvalidFileStoreVersionException, URISyntaxException, InvalidKeyException, StorageException {
+    public static void setup() throws IOException, InvalidFileStoreVersionException, URISyntaxException,
+            InvalidKeyException, StorageException {
         FileStoreBuilder builder = FileStoreUtil.getFileStoreBuilder();
         fileStore = builder.buildReadOnly();
         segmentStore = newSegmentStore(Proc.of(builder.buildProcBackend(fileStore)));
@@ -62,7 +63,7 @@ public class ContentGrowthQueries {
             fileStore.close();
         }
     }
-    
+
     @Test
     public void listBinariesAdddedBetweenTwoRevisionsBiggerThanThreshold() {
         String path = "content";
@@ -81,7 +82,30 @@ public class ContentGrowthQueries {
                 .flatMap(asStream(RecordChangesDiff::changes))
                 .filter(c -> c.type() == ChangeType.PROPERTY_ADDED)
                 .filter(c -> c.size() > 300_000);
-        
+
         changes.forEach(System.out::println);
+    }
+
+    @Test
+    public void listAddedChangesSizePerRevision() {
+        String path = "content";
+        Stream<Double> changeSizes = StreamEx.of(asStream(segmentStore.journalEntries())
+                .map(JournalEntry::getRoot)
+                .map(node -> node.getChildNode("root").getChildNode(path)))
+                .pairMap((a, b) -> {
+                    RecordChangesDiff diff = new RecordChangesDiff(path, new ArrayList<>());
+                    a.compareAgainstBaseState(b, diff);
+                    return diff;
+                })
+                .map(asStream(RecordChangesDiff::changes))
+                .map(s -> StreamEx.of(s)
+                        .filter(c -> c.type() == ChangeType.PROPERTY_ADDED 
+                                || c.type() == ChangeType.PROPERTY_CHANGED
+                                || c.type() == ChangeType.PROPERTY_DELETED)
+                        .mapToLong(Change::size)
+                        .sum())
+                .map(size -> ((double) size / (double) MB));
+               
+        System.out.println(changeSizes.mapToDouble(Double::doubleValue).sum());        
     }
 }
