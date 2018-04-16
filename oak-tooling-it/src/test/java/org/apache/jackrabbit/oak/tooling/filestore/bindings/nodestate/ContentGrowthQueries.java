@@ -24,6 +24,10 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.apache.jackrabbit.oak.segment.file.FileStoreBuilder;
@@ -38,6 +42,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.github.sh0nk.matplotlib4j.Plot;
+import com.github.sh0nk.matplotlib4j.PythonExecutionException;
 import com.microsoft.azure.storage.StorageException;
 
 import one.util.streamex.StreamEx;
@@ -87,7 +93,7 @@ public class ContentGrowthQueries {
     }
 
     @Test
-    public void listAddedChangesSizePerRevision() {
+    public void listAddedChangesSizePerRevision() throws IOException, PythonExecutionException {
         String path = "content";
         Stream<Double> changeSizes = StreamEx.of(asStream(segmentStore.journalEntries())
                 .map(JournalEntry::getRoot)
@@ -106,6 +112,18 @@ public class ContentGrowthQueries {
                         .sum())
                 .map(size -> ((double) size / (double) MB));
                
-        System.out.println(changeSizes.mapToDouble(Double::doubleValue).sum());        
+        System.out.println(changeSizes.mapToDouble(Double::doubleValue).sum());
+        
+//        List<Double> y = changeSizes.collect(Collectors.toList());
+//        Collections.reverse(y);
+//        List<Integer> x =  IntStream.range(1, 77).boxed().collect(Collectors.toList());
+//        
+//        Plot plt = Plot.create();
+//        plt.plot().add(x, y, "o").label("Size increase per revision");
+//        plt.xlim(0, 77);
+//        plt.savefig("/Users/dulceanu/Downloads/histogram.png").dpi(200);
+//        
+////        // Don't miss this line to output the file!
+//        plt.executeSilently();
     }
 }
